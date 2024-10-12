@@ -1,0 +1,3 @@
+[submodule "hprocess"]
+	path = hprocess
+	url = https://github.com/custodiaJs/cjs-network-platform-hprocess
