@@ -23,28 +23,11 @@ def detect_architecture():
 def install_dependencies():
     """Installiert benötigte Abhängigkeiten."""
     try:
-        run_command(["brew", "install", "qemu", "gcc", "make", "gnu-sed", "gawk", "wget", "git"])
+        run_command(["apt-get", "update"])
+        run_command(["apt-get", "install", "-y", "qemu", "gcc", "make", "wget", "git", "libncurses-dev", "bison", "flex"])
     except subprocess.CalledProcessError:
-        print("Fehler beim Installieren der Abhängigkeiten. Prüfe Homebrew-Installation.")
+        print("Fehler beim Installieren der Abhängigkeiten. Prüfe deine Installation.")
         sys.exit(1)
-
-def create_qemu_image(image_name, image_size="100M"):
-    """Erstellt ein QEMU-Image."""
-    run_command(["qemu-img", "create", "-f", "qcow2", image_name, image_size])
-
-def format_qemu_image(image_name):
-    """Formatiert das QEMU-Image als ext4-Dateisystem."""
-    run_command(["mkfs.ext4", "-F", image_name])
-
-def mount_image(image_name, mount_point):
-    """Mountet das QEMU-Image an ein temporäres Verzeichnis."""
-    if not os.path.exists(mount_point):
-        os.makedirs(mount_point)
-    run_command(["sudo", "mount", "-o", "loop", image_name, mount_point])
-
-def unmount_image(mount_point):
-    """Unmountet das QEMU-Image vom temporären Verzeichnis."""
-    run_command(["sudo", "umount", mount_point])
 
 def build_busybox(arch):
     """Lädt und kompiliert BusyBox, um ein minimalistisches Root-Dateisystem zu erstellen."""
@@ -62,13 +45,13 @@ def build_busybox(arch):
     os.chdir("..")
     return os.path.join(busybox_dir, "_install")
 
-def setup_rootfs(rootfs_dir, mount_point, hprocs_path):
+def setup_rootfs(rootfs_dir, hprocs_path):
     """Kopiert BusyBox-Installationsdateien und fügt die hprocs-Datei hinzu."""
-    print(f"Kopiere BusyBox in das Root-Dateisystem: {mount_point}")
-    shutil.copytree(rootfs_dir, mount_point, dirs_exist_ok=True)
+    print(f"Kopiere BusyBox in das Root-Dateisystem: {rootfs_dir}")
+    shutil.copytree(rootfs_dir, "/target-rootfs", dirs_exist_ok=True)
 
     # hprocs Datei in das Root-Dateisystem kopieren
-    target_hprocs = os.path.join(mount_point, "init")
+    target_hprocs = os.path.join("/target-rootfs", "init")
     print(f"Kopiere hprocs nach {target_hprocs} und setze sie als Init-Prozess.")
     shutil.copy(hprocs_path, target_hprocs)
 
@@ -125,23 +108,11 @@ def main():
     repo_dir = "external-repo"
     hprocs_path = clone_and_build_external_repo(repo_url, repo_dir)
 
-    # QEMU-Image erstellen
-    image_name = "qemu_image.img"
-    create_qemu_image(image_name)
-    format_qemu_image(image_name)
-
-    # Mount das QEMU-Image
-    mount_point = "/mnt/qemu_image"
-    mount_image(image_name, mount_point)
-
     # BusyBox bauen und Root-Dateisystem einrichten
     rootfs_dir = build_busybox(arch)
-    setup_rootfs(rootfs_dir, mount_point, hprocs_path)
+    setup_rootfs(rootfs_dir, hprocs_path)
 
-    # Unmount das QEMU-Image
-    unmount_image(mount_point)
-
-    print(f"QEMU-Image {image_name} erfolgreich erstellt und konfiguriert!")
+    print(f"System erfolgreich eingerichtet!")
 
 if __name__ == "__main__":
     main()
